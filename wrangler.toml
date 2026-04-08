@@ -1,0 +1,15 @@
+name = "ip-location-tracker"
+main = "src/index.js"
+compatibility_date = "2024-04-03"
+
+[vars]
+# 管理員訪問密鑰 (建議部署後在 Cloudflare Dashboard 設定為 Secret)
+ADMIN_KEY = "admin123"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ip-location-db"
+database_id = "PASTE_YOUR_DATABASE_ID_HERE"
+
+[triggers]
+crons = ["0 0 * * *"] # 每天午夜執行資料清理

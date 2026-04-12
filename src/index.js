@@ -29,8 +29,9 @@ export default {
         return new Response("Unauthorized", { status: 401 });
       }
       try {
+        // 限制讀取最近 100 筆資料，避免大量封包傳輸
         const { results } = await env.DB.prepare(
-          "SELECT * FROM location_logs ORDER BY created_at DESC LIMIT 1000"
+          "SELECT * FROM location_logs ORDER BY created_at DESC LIMIT 100"
         ).all();
         return new Response(AdminDashboard(results), {
           headers: { "content-type": "text/html;charset=UTF-8" },
@@ -42,7 +43,8 @@ export default {
 
     // 3. 核心功能: 追蹤與 Landing Page
     const trackId = url.searchParams.get("track_id");
-    if (trackId) {
+    // 基礎校驗: 確認 track_id 存在且長度合理 (防止惡意注入過長字串)
+    if (trackId && trackId.length <= 100) {
       // 擷取地理位置資訊 (request.cf)
       const cf = request.cf || {};
       const logData = {
@@ -56,7 +58,11 @@ export default {
         user_agent: request.headers.get("user-agent") || "Unknown",
       };
 
-      // 非同步寫入 D1 (不阻擋使用者看到網頁)
+      /**
+       * 非同步寫入 D1 (重要技術點):
+       * 使用 waitUntil 確保寫入資料庫的操作在背景執行，不阻擋使用者看到 Landing Page。
+       * 這能顯著優化使用者的載入體感速度。
+       */
       ctx.waitUntil(this.logToDatabase(env, logData));
     }
 
@@ -112,7 +118,12 @@ export default {
    */
   checkAuth(url, env) {
     const key = url.searchParams.get("key");
-    // 如果 URL 帶有正確密鑰，或是在本地開發環境 (無密鑰情況下可暫時放行)
-    return key === env.ADMIN_KEY || !env.ADMIN_KEY;
+    /**
+     * 安全性修正:
+     * 1. env.ADMIN_KEY 必須存在 (不能為 undefined 或空值)。
+     * 2. URL 傳入的 key 必須完全匹配。
+     * 若未滿足上述條件，系統將嚴格禁止進入後台。
+     */
+    return env.ADMIN_KEY && key === env.ADMIN_KEY;
   }
 };

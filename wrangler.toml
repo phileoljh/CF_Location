@@ -3,8 +3,8 @@ main = "src/index.js"
 compatibility_date = "2024-04-03"
 
 [vars]
-# 管理員訪問密鑰 (建議部署後在 Cloudflare Dashboard 設定為 Secret)
-ADMIN_KEY = "admin123"
+# 管理員訪問密鑰 (必須使用 wrangler secret put ADMIN_KEY 設定，嚴禁寫死在設定檔中)
+# ADMIN_KEY = "your_secret_key"
 
 [[d1_databases]]
 binding = "DB"

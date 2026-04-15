@@ -9,7 +9,7 @@ compatibility_date = "2024-04-03"
 [[d1_databases]]
 binding = "DB"
 database_name = "ip-location-db"
-database_id = "PASTE_YOUR_DATABASE_ID_HERE"
+database_id = "c8239f76-10c4-4ba0-8bbe-2c4897d5d982"
 
 [triggers]
 crons = ["0 0 * * *"] # 每天午夜執行資料清理

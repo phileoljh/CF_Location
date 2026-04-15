@@ -5,6 +5,13 @@
 
 import { LandingPage, AdminDashboard, GeneratorPage } from "./ui.js";
 
+/**
+ * track_id 白名單正規表達式 (模組層級常數)
+ * 只允許英數字、底線、減號，長度 1~100。
+ * 定義在模組層級以避免每次請求重新編譯，提升效能。
+ */
+const VALID_TRACK_ID_PATTERN = /^[a-zA-Z0-9_\-]{1,100}$/;
+
 export default {
   /**
    * HTTP 請求處理器
@@ -29,11 +36,18 @@ export default {
         return new Response("Unauthorized", { status: 401 });
       }
       try {
-        // 限制讀取最近 100 筆資料，避免大量封包傳輸
-        const { results } = await env.DB.prepare(
-          "SELECT * FROM location_logs ORDER BY created_at DESC LIMIT 100"
-        ).all();
-        return new Response(AdminDashboard(results), {
+        // 平行查詢: 同步取得「最近 100 筆明細」與「資料庫真實總筆數」
+        // 避免以受 LIMIT 100 限制的 results.length 作為總數，造成統計誤導
+        const [{ results }, countResult] = await Promise.all([
+          env.DB.prepare(
+            "SELECT * FROM location_logs ORDER BY created_at DESC LIMIT 100"
+          ).all(),
+          env.DB.prepare(
+            "SELECT COUNT(*) AS total FROM location_logs"
+          ).first(),
+        ]);
+        const totalCount = Number(countResult?.total ?? 0);
+        return new Response(AdminDashboard(results, totalCount), {
           headers: { "content-type": "text/html;charset=UTF-8" },
         });
       } catch (e) {
@@ -43,8 +57,13 @@ export default {
 
     // 3. 核心功能: 追蹤與 Landing Page
     const trackId = url.searchParams.get("track_id");
-    // 基礎校驗: 確認 track_id 存在且長度合理 (防止惡意注入過長字串)
-    if (trackId && trackId.length <= 100) {
+    /**
+     * 白名單輸入驗證 (XSS 防護):
+     * 只允許英數字、底線 (_)、減號 (-) 組成的識別碼，長度 1~100。
+     * 阻斷所有含特殊字元 (<, >, ", ', ; 等) 的惡意 payload 寫入資料庫，
+     * 從根源切斷 Stored XSS 的攻擊入口。
+     */
+    if (trackId && VALID_TRACK_ID_PATTERN.test(trackId)) {
       // 擷取地理位置資訊 (request.cf)
       const cf = request.cf || {};
       const logData = {

@@ -34,5 +34,5 @@
 您將看到所有訪問者的 IP、地理位置（國家、城市）及訪問時間。
 
 ## 🔒 安全建議
-- **請務必更換 `ADMIN_KEY`**：預設為 `admin123`，請在 Cloudflare Variables 中覆蓋它。
+- **必須設定 `ADMIN_KEY`**：請到 Cloudflare Workers 的 **Settings > Variables and Secrets**，新增 `ADMIN_KEY` 為 **Secret** 類型。**若未設定，後台 `/admin` 與 `/generate` 路由將拒絕所有存取。**
 - **管理者路徑**：您可以隨時在 `src/index.js` 中修改 `/admin` 或 `/generate` 路徑名稱以增加隱蔽性。

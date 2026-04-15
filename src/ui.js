@@ -3,6 +3,22 @@
  * 所有頁面均採用現代化 Premium 設計，包含響應式佈局與玻璃擬態視覺效果。
  */
 
+/**
+ * HTML 特殊字元轉義函式 (XSS 防護)
+ * 將所有從資料庫讀出並插入 HTML 的字串，進行 Escape 處理。
+ * 防止攻擊者透過 track_id 等欄位注入惡意腳本 (Stored XSS)。
+ * @param {*} str - 任意輸入值
+ * @returns {string} 安全的 HTML 字串
+ */
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const COMMON_HEAD = `
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -118,7 +134,7 @@ export const LandingPage = () => `
 </html>
 `;
 
-export const AdminDashboard = (logs) => `
+export const AdminDashboard = (logs, totalCount = 0) => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -151,7 +167,7 @@ export const AdminDashboard = (logs) => `
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-label">總訪問量</div>
-        <div class="stat-val">${logs.length}</div>
+        <div class="stat-val">${totalCount}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">近 24 小時</div>
@@ -160,6 +176,7 @@ export const AdminDashboard = (logs) => `
     </div>
 
     <div class="table-card">
+      <div style="padding: 1rem 1.5rem 0; color: var(--text-muted); font-size: 0.85rem;">最近 100 筆紀錄（共 ${totalCount} 筆）</div>
       <div style="overflow-x: auto;">
         <table>
           <thead>
@@ -175,11 +192,11 @@ export const AdminDashboard = (logs) => `
             ${logs.map(log => `
               <tr>
                 <td style="white-space: nowrap;">${new Date(log.created_at).toLocaleString('zh-TW')}</td>
-                <td><span class="badge">${log.track_id}</span></td>
-                <td><code style="color: var(--primary)">${log.ip}</code></td>
-                <td>${log.country} / ${log.city}</td>
-                <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: 0.8rem;" title="${log.user_agent}">
-                  ${log.user_agent}
+                <td><span class="badge">${escapeHtml(log.track_id)}</span></td>
+                <td><code style="color: var(--primary)">${escapeHtml(log.ip)}</code></td>
+                <td>${escapeHtml(log.country)} / ${escapeHtml(log.city)}</td>
+                <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: 0.8rem;" title="${escapeHtml(log.user_agent)}">
+                  ${escapeHtml(log.user_agent)}
                 </td>
               </tr>
             `).join('')}

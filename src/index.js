@@ -22,7 +22,8 @@ export default {
 
     // 1. 中繼工具頁面: 產生連結
     if (path === "/generate") {
-      if (!this.checkAuth(request, env)) {
+      // ENABLE_AUTH 旗標為 "true" 時才啟用 Basic Auth，否則直接放行
+      if (env.ENABLE_AUTH === 'true' && !this.checkAuth(request, env)) {
         return new Response("Unauthorized", {
           status: 401,
           headers: { "WWW-Authenticate": 'Basic realm="IP Tracker Admin"' },
@@ -35,7 +36,8 @@ export default {
 
     // 2. 後台管理頁面: 檢視紀錄
     if (path === "/admin") {
-      if (!this.checkAuth(request, env)) {
+      // ENABLE_AUTH 旗標為 "true" 時才啟用 Basic Auth，否則直接放行
+      if (env.ENABLE_AUTH === 'true' && !this.checkAuth(request, env)) {
         return new Response("Unauthorized", {
           status: 401,
           headers: { "WWW-Authenticate": 'Basic realm="IP Tracker Admin"' },

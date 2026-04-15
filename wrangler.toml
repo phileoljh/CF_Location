@@ -3,6 +3,11 @@ main = "src/index.js"
 compatibility_date = "2024-04-03"
 
 [vars]
+# 後台存取控制旗標
+# "true"  = 啟用 Basic Auth（需輸入 ADMIN_KEY 才能進入後台）
+# "false" = 公開存取（預設值，無需驗證）
+# 可在 Cloudflare Dashboard > Worker > Settings > Variables 動態切換，無需重新部署
+ENABLE_AUTH = "false"
 # 管理員訪問密鑰 (必須使用 wrangler secret put ADMIN_KEY 設定，嚴禁寫死在設定檔中)
 # ADMIN_KEY = "your_secret_key"
 

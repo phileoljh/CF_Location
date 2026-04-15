@@ -3,6 +3,22 @@
  * 所有頁面均採用現代化 Premium 設計，包含響應式佈局與玻璃擬態視覺效果。
  */
 
+/**
+ * HTML 特殊字元轉義函式 (XSS 防護)
+ * 將所有從資料庫讀出並插入 HTML 的字串，進行 Escape 處理。
+ * 防止攻擊者透過 track_id 等欄位注入惡意腳本 (Stored XSS)。
+ * @param {*} str - 任意輸入值
+ * @returns {string} 安全的 HTML 字串
+ */
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const COMMON_HEAD = `
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -118,7 +134,7 @@ export const LandingPage = () => `
 </html>
 `;
 
-export const AdminDashboard = (logs) => `
+export const AdminDashboard = (logs, totalCount = 0) => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -151,7 +167,7 @@ export const AdminDashboard = (logs) => `
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-label">總訪問量</div>
-        <div class="stat-val">${logs.length}</div>
+        <div class="stat-val">${totalCount}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">近 24 小時</div>
@@ -160,6 +176,7 @@ export const AdminDashboard = (logs) => `
     </div>
 
     <div class="table-card">
+      <div style="padding: 1rem 1.5rem 0; color: var(--text-muted); font-size: 0.85rem;">最近 100 筆紀錄（共 ${totalCount} 筆）</div>
       <div style="overflow-x: auto;">
         <table>
           <thead>
@@ -175,11 +192,11 @@ export const AdminDashboard = (logs) => `
             ${logs.map(log => `
               <tr>
                 <td style="white-space: nowrap;">${new Date(log.created_at).toLocaleString('zh-TW')}</td>
-                <td><span class="badge">${log.track_id}</span></td>
-                <td><code style="color: var(--primary)">${log.ip}</code></td>
-                <td>${log.country} / ${log.city}</td>
-                <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: 0.8rem;" title="${log.user_agent}">
-                  ${log.user_agent}
+                <td><span class="badge">${escapeHtml(log.track_id)}</span></td>
+                <td><code style="color: var(--primary)">${escapeHtml(log.ip)}</code></td>
+                <td>${escapeHtml(log.country)} / ${escapeHtml(log.city)}</td>
+                <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: 0.8rem;" title="${escapeHtml(log.user_agent)}">
+                  ${escapeHtml(log.user_agent)}
                 </td>
               </tr>
             `).join('')}
@@ -204,16 +221,13 @@ export const GeneratorPage = () => `
   <div class="bg-gradient"></div>
   <div class="glass-card">
     <h2 style="margin-bottom: 0.5rem;">追蹤連結產生器</h2>
-    <p style="color: var(--text-muted); margin-bottom: 2rem; font-size: 0.9rem;">輸入或產生亂數識別碼，建立隱形追蹤網址</p>
-    
+    <p style="color: var(--text-muted); margin-bottom: 2rem; font-size: 0.9rem;">
+      自訂識別碼，或留空由系統自動產生
+    </p>
+
     <div class="input-group">
       <label>識別碼 (Track ID)</label>
-      <div style="display: flex; gap: 0.5rem;">
-        <input type="text" id="trackId" placeholder="例如: user_001" style="flex: 1;">
-        <button onclick="generateRandom()" class="btn" style="padding: 0.8rem;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
-        </button>
-      </div>
+      <input type="text" id="trackId" placeholder="留空則自動產生亂數識別碼">
     </div>
 
     <button onclick="buildUrl()" class="btn" style="width: 100%; margin-bottom: 1.5rem;">產生追蹤連結</button>
@@ -226,14 +240,26 @@ export const GeneratorPage = () => `
   </div>
 
   <script>
-    function generateRandom() {
-      const rand = Math.random().toString(36).substring(2, 10);
-      document.getElementById('trackId').value = 'id_' + rand;
-    }
-    
+    const trackIdInput = document.getElementById('trackId');
+
+    // 使用者手動輸入時，清除 auto 標記，確保自訂 ID 不會被覆寫
+    trackIdInput.addEventListener('input', function () {
+      this.dataset.auto = 'false';
+    });
+
     function buildUrl() {
-      const id = document.getElementById('trackId').value;
-      if (!id) return alert('請輸入識別碼');
+      let id = trackIdInput.value.trim();
+
+      // 判斷是否應產生新亂數:
+      // 1. 欄位為空 → 必須產生
+      // 2. 欄位有值但是上次由系統自動填入 (data-auto="true") → 視為「再按一次要換新」
+      // 3. 欄位有值且是使用者自己打的 (data-auto="false") → 沿用自訂 ID
+      if (!id || trackIdInput.dataset.auto === 'true') {
+        id = 'id_' + Math.random().toString(36).substring(2, 10);
+        trackIdInput.value = id;
+        trackIdInput.dataset.auto = 'true'; // 標記為系統產生
+      }
+
       const url = window.location.origin + '/?track_id=' + encodeURIComponent(id);
       document.getElementById('generatedUrl').innerText = url;
       document.getElementById('resultBox').style.display = 'block';
@@ -247,3 +273,4 @@ export const GeneratorPage = () => `
 </body>
 </html>
 `;
+

@@ -5,6 +5,13 @@
 
 import { LandingPage, AdminDashboard, GeneratorPage } from "./ui.js";
 
+/**
+ * track_id 白名單正規表達式 (模組層級常數)
+ * 只允許英數字、底線、減號，長度 1~100。
+ * 定義在模組層級以避免每次請求重新編譯，提升效能。
+ */
+const VALID_TRACK_ID_PATTERN = /^[a-zA-Z0-9_\-]{1,100}$/;
+
 export default {
   /**
    * HTTP 請求處理器
@@ -15,8 +22,12 @@ export default {
 
     // 1. 中繼工具頁面: 產生連結
     if (path === "/generate") {
-      if (!this.checkAuth(url, env)) {
-        return new Response("Unauthorized", { status: 401 });
+      // ENABLE_AUTH 旗標為 "true" 時才啟用 Basic Auth，否則直接放行
+      if (env.ENABLE_AUTH === 'true' && !this.checkAuth(request, env)) {
+        return new Response("Unauthorized", {
+          status: 401,
+          headers: { "WWW-Authenticate": 'Basic realm="IP Tracker Admin"' },
+        });
       }
       return new Response(GeneratorPage(), {
         headers: { "content-type": "text/html;charset=UTF-8" },
@@ -25,15 +36,26 @@ export default {
 
     // 2. 後台管理頁面: 檢視紀錄
     if (path === "/admin") {
-      if (!this.checkAuth(url, env)) {
-        return new Response("Unauthorized", { status: 401 });
+      // ENABLE_AUTH 旗標為 "true" 時才啟用 Basic Auth，否則直接放行
+      if (env.ENABLE_AUTH === 'true' && !this.checkAuth(request, env)) {
+        return new Response("Unauthorized", {
+          status: 401,
+          headers: { "WWW-Authenticate": 'Basic realm="IP Tracker Admin"' },
+        });
       }
       try {
-        // 限制讀取最近 100 筆資料，避免大量封包傳輸
-        const { results } = await env.DB.prepare(
-          "SELECT * FROM location_logs ORDER BY created_at DESC LIMIT 100"
-        ).all();
-        return new Response(AdminDashboard(results), {
+        // 平行查詢: 同步取得「最近 100 筆明細」與「資料庫真實總筆數」
+        // 避免以受 LIMIT 100 限制的 results.length 作為總數，造成統計誤導
+        const [{ results }, countResult] = await Promise.all([
+          env.DB.prepare(
+            "SELECT * FROM location_logs ORDER BY created_at DESC LIMIT 100"
+          ).all(),
+          env.DB.prepare(
+            "SELECT COUNT(*) AS total FROM location_logs"
+          ).first(),
+        ]);
+        const totalCount = Number(countResult?.total ?? 0);
+        return new Response(AdminDashboard(results, totalCount), {
           headers: { "content-type": "text/html;charset=UTF-8" },
         });
       } catch (e) {
@@ -43,8 +65,13 @@ export default {
 
     // 3. 核心功能: 追蹤與 Landing Page
     const trackId = url.searchParams.get("track_id");
-    // 基礎校驗: 確認 track_id 存在且長度合理 (防止惡意注入過長字串)
-    if (trackId && trackId.length <= 100) {
+    /**
+     * 白名單輸入驗證 (XSS 防護):
+     * 只允許英數字、底線 (_)、減號 (-) 組成的識別碼，長度 1~100。
+     * 阻斷所有含特殊字元 (<, >, ", ', ; 等) 的惡意 payload 寫入資料庫，
+     * 從根源切斷 Stored XSS 的攻擊入口。
+     */
+    if (trackId && VALID_TRACK_ID_PATTERN.test(trackId)) {
       // 擷取地理位置資訊 (request.cf)
       const cf = request.cf || {};
       const logData = {
@@ -114,16 +141,25 @@ export default {
   },
 
   /**
-   * 簡易權限檢查 (透過 URL 參數或是 Env 密鑰)
+   * 輔助函式: HTTP Basic Auth 驗證
+   * 從 Authorization 標頭解析密鑰，避免 ADMIN_KEY 明碼出現在 URL、
+   * 瀏覽器歷史記錄與 Server-side Access Log 中。
+   * 使用方式：瀏覽器存取後台路由時，會自動彈出原生帳密對話框，
+   *           帳號可輸入任意值，密碼即為 ADMIN_KEY。
    */
-  checkAuth(url, env) {
-    const key = url.searchParams.get("key");
-    /**
-     * 安全性修正:
-     * 1. env.ADMIN_KEY 必須存在 (不能為 undefined 或空值)。
-     * 2. URL 傳入的 key 必須完全匹配。
-     * 若未滿足上述條件，系統將嚴格禁止進入後台。
-     */
-    return env.ADMIN_KEY && key === env.ADMIN_KEY;
+  checkAuth(request, env) {
+    if (!env.ADMIN_KEY) return false;  // 未設定金鑰時，一律拒絕存取
+
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Basic ")) return false;
+
+    // 解碼 Base64 取得 "username:password" 格式字串
+    const decoded = atob(authHeader.slice(6));
+    const colonIndex = decoded.indexOf(":");
+    if (colonIndex === -1) return false;
+
+    // 只驗證密碼欄位 (password)，帳號 (username) 不限制
+    const password = decoded.slice(colonIndex + 1);
+    return password === env.ADMIN_KEY;
   }
 };

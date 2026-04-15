@@ -2,6 +2,11 @@
 
 這是一個專業且精美的地理位置追蹤系統，建立在 Cloudflare Workers 與 D1 資料庫之上。它能幫助您透過隨機生成的追蹤連結，在不需使用者主動授權的情況下，自動判斷並紀錄使用者的 IP 與地理位置，同時呈現一個與系統風格一致的「未來科技」風格歡迎頁面。
 
+## 🔗 部署網址 (Deployed URLs)
+- **假網頁 (入口)**: [https://location.hihimonitor.win/](https://location.hihimonitor.win/)
+- **產生網址**: [https://location.hihimonitor.win/generate](https://location.hihimonitor.win/generate)
+- **後台管理**: [https://location.hihimonitor.win/admin](https://location.hihimonitor.win/admin)
+
 ## ✨ 特色功能
 - **零延遲追蹤**：使用 `ctx.waitUntil` 技術，讓資料紀錄在背景執行，不影響網頁開啟速度。
 - **高質感 UI**：內建 Premium 等級的玻璃擬態 (Glassmorphism) 介面。
@@ -26,11 +31,11 @@
 ## 🛠️ 使用說明
 
 ### 產生追蹤連結
-造訪 `https://your-worker.workers.dev/generate?key=您的ADMIN_KEY`。
+造訪 `https://location.hihimonitor.win/generate?key=您的ADMIN_KEY`。
 在介面中輸入或生成識別碼，複製產生的 URL 發送給目標。
 
 ### 查看紀錄
-造訪 `https://your-worker.workers.dev/admin?key=您的ADMIN_KEY`。
+造訪 `https://location.hihimonitor.win/admin?key=您的ADMIN_KEY`。
 您將看到所有訪問者的 IP、地理位置（國家、城市）及訪問時間。
 
 ## 🔒 安全建議

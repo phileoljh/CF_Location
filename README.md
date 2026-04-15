@@ -26,12 +26,12 @@
 ## 🛠️ 使用說明
 
 ### 產生追蹤連結
-造訪 `https://your-worker.workers.dev/generate?key=您的ADMIN_KEY`。
-在介面中輸入或生成識別碼，複製產生的 URL 發送給目標。
+造訪 `https://your-worker.workers.dev/generate`。
+瀏覽器將彈出原生登入視窗，帳號可輸入任意值，**密碼填入您設定的 `ADMIN_KEY`** 即可進入。憑證由瀏覽器安全管理，**不會出現在網址列或歷史記錄**。
 
 ### 查看紀錄
-造訪 `https://your-worker.workers.dev/admin?key=您的ADMIN_KEY`。
-您將看到所有訪問者的 IP、地理位置（國家、城市）及訪問時間。
+造訪 `https://your-worker.workers.dev/admin`。
+同樣使用 HTTP Basic Auth 驗證，您將看到所有訪問者的 IP、地理位置（國家、城市）及訪問時間。
 
 ## 🔒 安全建議
 - **必須設定 `ADMIN_KEY`**：請到 Cloudflare Workers 的 **Settings > Variables and Secrets**，新增 `ADMIN_KEY` 為 **Secret** 類型。**若未設定，後台 `/admin` 與 `/generate` 路由將拒絕所有存取。**

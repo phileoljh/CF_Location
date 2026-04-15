@@ -22,8 +22,11 @@ export default {
 
     // 1. 中繼工具頁面: 產生連結
     if (path === "/generate") {
-      if (!this.checkAuth(url, env)) {
-        return new Response("Unauthorized", { status: 401 });
+      if (!this.checkAuth(request, env)) {
+        return new Response("Unauthorized", {
+          status: 401,
+          headers: { "WWW-Authenticate": 'Basic realm="IP Tracker Admin"' },
+        });
       }
       return new Response(GeneratorPage(), {
         headers: { "content-type": "text/html;charset=UTF-8" },
@@ -32,8 +35,11 @@ export default {
 
     // 2. 後台管理頁面: 檢視紀錄
     if (path === "/admin") {
-      if (!this.checkAuth(url, env)) {
-        return new Response("Unauthorized", { status: 401 });
+      if (!this.checkAuth(request, env)) {
+        return new Response("Unauthorized", {
+          status: 401,
+          headers: { "WWW-Authenticate": 'Basic realm="IP Tracker Admin"' },
+        });
       }
       try {
         // 平行查詢: 同步取得「最近 100 筆明細」與「資料庫真實總筆數」
@@ -133,16 +139,25 @@ export default {
   },
 
   /**
-   * 簡易權限檢查 (透過 URL 參數或是 Env 密鑰)
+   * 輔助函式: HTTP Basic Auth 驗證
+   * 從 Authorization 標頭解析密鑰，避免 ADMIN_KEY 明碼出現在 URL、
+   * 瀏覽器歷史記錄與 Server-side Access Log 中。
+   * 使用方式：瀏覽器存取後台路由時，會自動彈出原生帳密對話框，
+   *           帳號可輸入任意值，密碼即為 ADMIN_KEY。
    */
-  checkAuth(url, env) {
-    const key = url.searchParams.get("key");
-    /**
-     * 安全性修正:
-     * 1. env.ADMIN_KEY 必須存在 (不能為 undefined 或空值)。
-     * 2. URL 傳入的 key 必須完全匹配。
-     * 若未滿足上述條件，系統將嚴格禁止進入後台。
-     */
-    return env.ADMIN_KEY && key === env.ADMIN_KEY;
+  checkAuth(request, env) {
+    if (!env.ADMIN_KEY) return false;  // 未設定金鑰時，一律拒絕存取
+
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Basic ")) return false;
+
+    // 解碼 Base64 取得 "username:password" 格式字串
+    const decoded = atob(authHeader.slice(6));
+    const colonIndex = decoded.indexOf(":");
+    if (colonIndex === -1) return false;
+
+    // 只驗證密碼欄位 (password)，帳號 (username) 不限制
+    const password = decoded.slice(colonIndex + 1);
+    return password === env.ADMIN_KEY;
   }
 };

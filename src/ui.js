@@ -240,13 +240,26 @@ export const GeneratorPage = () => `
   </div>
 
   <script>
+    const trackIdInput = document.getElementById('trackId');
+
+    // 使用者手動輸入時，清除 auto 標記，確保自訂 ID 不會被覆寫
+    trackIdInput.addEventListener('input', function () {
+      this.dataset.auto = 'false';
+    });
+
     function buildUrl() {
-      // 若使用者未輸入識別碼，自動產生亂數值；否則沿用自訂輸入
-      let id = document.getElementById('trackId').value.trim();
-      if (!id) {
+      let id = trackIdInput.value.trim();
+
+      // 判斷是否應產生新亂數:
+      // 1. 欄位為空 → 必須產生
+      // 2. 欄位有值但是上次由系統自動填入 (data-auto="true") → 視為「再按一次要換新」
+      // 3. 欄位有值且是使用者自己打的 (data-auto="false") → 沿用自訂 ID
+      if (!id || trackIdInput.dataset.auto === 'true') {
         id = 'id_' + Math.random().toString(36).substring(2, 10);
-        document.getElementById('trackId').value = id;
+        trackIdInput.value = id;
+        trackIdInput.dataset.auto = 'true'; // 標記為系統產生
       }
+
       const url = window.location.origin + '/?track_id=' + encodeURIComponent(id);
       document.getElementById('generatedUrl').innerText = url;
       document.getElementById('resultBox').style.display = 'block';

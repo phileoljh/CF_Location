@@ -1,4 +1,4 @@
-name = "ip-location-tracker"
+name = "cf-location"
 main = "src/index.js"
 compatibility_date = "2024-04-03"
 

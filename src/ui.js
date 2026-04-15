@@ -221,16 +221,13 @@ export const GeneratorPage = () => `
   <div class="bg-gradient"></div>
   <div class="glass-card">
     <h2 style="margin-bottom: 0.5rem;">追蹤連結產生器</h2>
-    <p style="color: var(--text-muted); margin-bottom: 2rem; font-size: 0.9rem;">輸入或產生亂數識別碼，建立隱形追蹤網址</p>
-    
+    <p style="color: var(--text-muted); margin-bottom: 2rem; font-size: 0.9rem;">
+      自訂識別碼，或留空由系統自動產生
+    </p>
+
     <div class="input-group">
       <label>識別碼 (Track ID)</label>
-      <div style="display: flex; gap: 0.5rem;">
-        <input type="text" id="trackId" placeholder="例如: user_001" style="flex: 1;">
-        <button onclick="generateRandom()" class="btn" style="padding: 0.8rem;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
-        </button>
-      </div>
+      <input type="text" id="trackId" placeholder="留空則自動產生亂數識別碼">
     </div>
 
     <button onclick="buildUrl()" class="btn" style="width: 100%; margin-bottom: 1.5rem;">產生追蹤連結</button>
@@ -243,14 +240,13 @@ export const GeneratorPage = () => `
   </div>
 
   <script>
-    function generateRandom() {
-      const rand = Math.random().toString(36).substring(2, 10);
-      document.getElementById('trackId').value = 'id_' + rand;
-    }
-    
     function buildUrl() {
-      const id = document.getElementById('trackId').value;
-      if (!id) return alert('請輸入識別碼');
+      // 若使用者未輸入識別碼，自動產生亂數值；否則沿用自訂輸入
+      let id = document.getElementById('trackId').value.trim();
+      if (!id) {
+        id = 'id_' + Math.random().toString(36).substring(2, 10);
+        document.getElementById('trackId').value = id;
+      }
       const url = window.location.origin + '/?track_id=' + encodeURIComponent(id);
       document.getElementById('generatedUrl').innerText = url;
       document.getElementById('resultBox').style.display = 'block';
@@ -264,3 +260,4 @@ export const GeneratorPage = () => `
 </body>
 </html>
 `;
+

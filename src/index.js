@@ -20,6 +20,11 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    // 0. 支援 HEAD 請求 (Uptime Monitor 探測專用)
+    if (request.method === "HEAD") {
+      return new Response(null, { status: 200 });
+    }
+
     // 1. 中繼工具頁面: 產生連結
     if (path === "/generate") {
       // ENABLE_AUTH 旗標為 "true" 時才啟用 Basic Auth，否則直接放行
